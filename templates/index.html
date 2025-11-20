@@ -1,0 +1,649 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualizer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f5f7fa;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 240px;
+            min-width: 240px;
+            flex-shrink: 0;
+            background: #2c3e50;
+            color: white;
+            padding: 15px 10px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        /* 项目选择下拉框 */
+        .project-select-container {
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+        .project-select-container label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+        #projectSelect {
+            width: 100%;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: none;
+            background: #34495e;
+            color: white;
+            font-size: 14px;
+        }
+        #projectSelect option {
+            background: #2c3e50;
+        }
+
+        .album-list {
+            list-style: none;
+        }
+        .album-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .album-item:hover { background: #34495e; }
+        .album-item.active { background: #3498db; font-weight: bold; }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0 20px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        .header-left h2 {
+            margin-bottom: 8px;
+        }
+        .sort-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #555;
+        }
+        .sort-control select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .gallery-container {
+            flex: 1;
+            padding: 0 20px 20px;
+            overflow: auto;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 10px 0;
+        }
+
+        .file-item {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .file-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .file-thumb {
+            aspect-ratio: 4 / 3;
+            width: 100%;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .file-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .file-thumb .icon {
+            font-size: 36px;
+            color: #777;
+        }
+
+        .filename {
+            padding: 8px;
+            font-size: 13px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: white;
+        }
+
+        /* Lightbox & Text Modal */
+        #lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        #lightbox.show { display: flex; }
+        #lightbox img {
+            max-width: 95%;
+            max-height: 85%;
+            object-fit: contain;
+            border: 2px solid white;
+            border-radius: 4px;
+        }
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 80px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2001;
+        }
+        .prev { left: 20px; }
+        .next { right: 20px; }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 2001;
+        }
+
+        #text-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: white;
+            z-index: 2001;
+            flex-direction: column;
+        }
+        #text-modal.show { display: flex; }
+        #text-header {
+            padding: 15px 20px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+        }
+        #text-content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            background: #fdfdfd;
+        }
+        #loading-more {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                min-width: auto;
+                max-height: 35%;
+            }
+            .gallery {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>📂 项目导航</h2>
+        <div class="project-select-container">
+            <label for="projectSelect">选择项目：</label>
+            <select id="projectSelect" onchange="switchProject(this.value)">
+                <option value="">— 请选择 —</option>
+            </select>
+        </div>
+        <ul class="album-list" id="albumList"></ul>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <div class="header-left">
+                <h2 id="currentTitle">请选择项目</h2>
+                <div class="sort-control">
+                    <label>排序：</label>
+                    <select id="sortMode" onchange="changeSortMode()">
+                        <option value="name">按名称</option>
+                        <option value="mtime">按修改时间</option>
+                        <option value="size">按文件大小</option>
+                    </select>
+                </div>
+            </div>
+            <span>共 <strong id="count">0</strong> 项</span>
+        </div>
+
+        <div class="gallery-container" id="galleryContainer">
+            <div class="gallery" id="gallery"></div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox">
+        <span class="close-btn" onclick="closeLightbox()">&times;</span>
+        <button class="nav-btn prev" onclick="changeImage(-1)">‹</button>
+        <img id="lightbox-img" src="" alt="大图">
+        <button class="nav-btn next" onclick="changeImage(1)">›</button>
+    </div>
+
+    <!-- Text Viewer -->
+    <div id="text-modal">
+        <div id="text-header">
+            <span id="text-filename"></span>
+            <button onclick="closeTextModal()" style="background:none;color:white;border:none;cursor:pointer;font-size:24px;">×</button>
+        </div>
+        <div id="text-content"></div>
+        <div id="loading-more">正在加载更多...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        let currentProject = null;
+        let currentAlbum = null; // 可能为 null（flat 模式）或字符串
+        let isFlatMode = false;
+        let allImages = [];
+        let allTexts = [];
+        let currentIndex = 0;
+        let currentTextFile = null;
+        let hasMoreText = true;
+        let isLoadingText = false;
+        let sortMode = 'name';
+
+        function init() {
+            fetch('/api/projects')
+                .then(r => r.json())
+                .then(data => {
+                    const select = document.getElementById('projectSelect');
+                    select.innerHTML = '<option value="">— 请选择 —</option>';
+                    data.projects.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p;
+                        opt.textContent = p;
+                        select.appendChild(opt);
+                    });
+                });
+        }
+
+        function switchProject(projectName) {
+            if (!projectName) {
+                currentProject = null;
+                currentAlbum = null;
+                isFlatMode = false;
+                document.getElementById('currentTitle').textContent = '请选择项目';
+                document.getElementById('albumList').innerHTML = '';
+                renderGallery([]);
+                return;
+            }
+
+            currentProject = projectName;
+            fetch(`/api/albums/${encodeURIComponent(projectName)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const albumList = document.getElementById('albumList');
+                    albumList.innerHTML = '';
+
+                    if (data.is_flat) {
+                        // 直接进入 flat 模式
+                        isFlatMode = true;
+                        currentAlbum = null;
+                        document.getElementById('currentTitle').textContent = `📁 ${projectName}（无子目录）`;
+                        loadFilesForAlbum('-'); // 特殊标记
+                    } else {
+                        isFlatMode = false;
+                        const albums = data.albums || [];
+                        if (albums.length === 0) {
+                            document.getElementById('currentTitle').textContent = `📁 ${projectName}（空）`;
+                            renderGallery([]);
+                        } else {
+                            // 创建相册列表
+                            albums.forEach(name => {
+                                const li = document.createElement('li');
+                                li.className = 'album-item';
+                                li.textContent = name;
+                                li.addEventListener('click', () => switchAlbum(name));
+                                albumList.appendChild(li);
+                            });
+                            // 默认选中第一个
+                            switchAlbum(albums[0]);
+                        }
+                    }
+                });
+        }
+
+        function switchAlbum(albumName) {
+            currentAlbum = albumName;
+            document.querySelectorAll('.album-item').forEach(el => {
+                el.classList.toggle('active', el.textContent === albumName);
+            });
+            document.getElementById('currentTitle').textContent = `${currentProject} / ${albumName}`;
+            loadFilesForAlbum(albumName);
+        }
+
+        function loadFilesForAlbum(albumOrEmpty) {
+            const pathPart = albumOrEmpty === '-' ? '-' : encodeURIComponent(albumOrEmpty);
+            const url = `/api/files/${encodeURIComponent(currentProject)}/${pathPart}`;
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    allImages = data.images || [];
+                    allTexts = data.texts || [];
+                    renderGallery();
+                });
+        }
+
+        function changeSortMode() {
+            sortMode = document.getElementById('sortMode').value;
+            if (!currentProject) return;
+
+            const albumPath = isFlatMode ? '-' : (currentAlbum || '');
+            const pathPart = albumPath === '-' ? '-' : encodeURIComponent(albumPath);
+            const url = `/api/sort/${encodeURIComponent(currentProject)}/${pathPart}?mode=${sortMode}`;
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    allImages = data.images || [];
+                    allTexts = data.texts || [];
+                    renderGallery();
+                });
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const items = [...allImages.map(f => ({name: f, type: 'image'})),
+                           ...allTexts.map(f => ({name: f, type: 'text'}))];
+
+            document.getElementById('count').textContent = items.length;
+
+            gallery.innerHTML = '';
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.dataset.name = item.name;
+                div.dataset.type = item.type;
+
+                if (item.type === 'image') {
+                    div.innerHTML = `
+                        <div class="file-thumb">
+                            <img loading="lazy" alt="${item.name}">
+                        </div>
+                        <div class="filename">${item.name}</div>
+                    `;
+                    const img = div.querySelector('img');
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                const relPath = isFlatMode ?
+                                    `${currentProject}/${item.name}` :
+                                    `${currentProject}/${currentAlbum}/${item.name}`;
+                                img.src = `/static/files/${encodeURIComponent(relPath)}`;
+                                observer.disconnect();
+                            }
+                        });
+                    }, { rootMargin: '50px' });
+                    observer.observe(img);
+                } else {
+                    const icon = item.name.endsWith('.log') ? '📝' : '📄';
+                    div.innerHTML = `
+                        <div class="file-thumb">
+                            <div class="icon">${icon}</div>
+                        </div>
+                        <div class="filename">${item.name}</div>
+                    `;
+                }
+                div.addEventListener('click', () => openFile(item));
+                gallery.appendChild(div);
+            });
+        }
+
+        function openFile(item) {
+            if (item.type === 'image') {
+                currentIndex = allImages.indexOf(item.name);
+                const relPath = isFlatMode ?
+                    `${currentProject}/${item.name}` :
+                    `${currentProject}/${currentAlbum}/${item.name}`;
+                const url = `/static/files/${encodeURIComponent(relPath)}`;
+                document.getElementById('lightbox-img').src = url;
+                document.getElementById('lightbox').classList.add('show');
+                document.body.style.overflow = 'hidden';
+            } else {
+                currentTextFile = item.name;
+                hasMoreText = true;
+                isLoadingText = false;
+                const relPath = isFlatMode ?
+                    `${currentProject}/${item.name}` :
+                    `${currentProject}/${currentAlbum}/${item.name}`;
+                loadTextLines(relPath, 100);
+            }
+        }
+
+        function loadTextLines(relPath, lines) {
+            if (isLoadingText) return;
+            isLoadingText = true;
+            document.getElementById('loading-more').style.display = 'block';
+
+            fetch(`/api/tail/${encodeURIComponent(relPath)}?lines=${lines}`)
+                .then(r => r.json())
+                .then(data => {
+                    const contentEl = document.getElementById('text-content');
+                    if (lines === 100) {
+                        contentEl.innerHTML = `<pre>${escapeHtml(data.content)}</pre>`;
+                        contentEl.scrollTop = contentEl.scrollHeight;
+                    } else {
+                        const oldScrollHeight = contentEl.scrollHeight;
+                        contentEl.innerHTML = `<pre>${escapeHtml(data.content)}</pre>` + contentEl.innerHTML;
+                        contentEl.scrollTop = contentEl.scrollHeight - oldScrollHeight;
+                    }
+                    document.getElementById('text-filename').textContent = currentTextFile;
+                    document.getElementById('text-modal').classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                    isLoadingText = false;
+                    document.getElementById('loading-more').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error(err);
+                    isLoadingText = false;
+                    document.getElementById('loading-more').style.display = 'none';
+                });
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        document.getElementById('text-content').addEventListener('scroll', (e) => {
+            const el = e.target;
+            if (el.scrollTop === 0 && hasMoreText && !isLoadingText) {
+                const currentLines = (el.innerText.match(/\n/g) || []).length + 1;
+                loadTextLines(
+                    isFlatMode ?
+                        `${currentProject}/${currentTextFile}` :
+                        `${currentProject}/${currentAlbum}/${currentTextFile}`,
+                    Math.min(currentLines + 200, 5000)
+                );
+            }
+        });
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function changeImage(dir) {
+            const all = allImages;
+            if (all.length === 0) return;
+            currentIndex = (currentIndex + dir + all.length) % all.length;
+            openFile({name: all[currentIndex], type: 'image'});
+        }
+
+        function closeTextModal() {
+            document.getElementById('text-modal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', e => {
+            if (document.getElementById('lightbox').classList.contains('show')) {
+                if (e.key === 'Escape') closeLightbox();
+                else if (e.key === 'ArrowLeft') changeImage(-1);
+                else if (e.key === 'ArrowRight') changeImage(1);
+            } else if (document.getElementById('text-modal').classList.contains('show')) {
+                if (e.key === 'Escape') closeTextModal();
+            }
+        });
+
+        const socket = io();
+        socket.on('project_list_update', data => {
+            const select = document.getElementById('projectSelect');
+            const wasSelected = select.value;
+            select.innerHTML = '<option value="">— 请选择 —</option>';
+            data.projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                if (p === wasSelected) opt.selected = true;
+                select.appendChild(opt);
+            });
+            if (!data.projects.includes(wasSelected)) {
+                switchProject('');
+            }
+        });
+    // 新增：监听文件变化
+    socket.on('files_update', (data) => {
+        if (currentProject === data.project) {
+            console.log("🔄 检测到文件变化，正在刷新...");
+            // 重新加载当前内容
+            if (isFlatMode) {
+                loadFilesForAlbum('-');
+            } else if (currentAlbum) {
+                loadFilesForAlbum(currentAlbum);
+            }
+        }
+    });
+
+    // 修改 switchProject 函数，在切换后通知后端
+    function switchProject(projectName) {
+        if (!projectName) {
+            currentProject = null;
+            currentAlbum = null;
+            isFlatMode = false;
+            document.getElementById('currentTitle').textContent = '请选择项目';
+            document.getElementById('albumList').innerHTML = '';
+            renderGallery([]);
+            return;
+        }
+
+        // 通知后端当前项目变更（用于启动监控）
+        fetch(`/api/set_current_project/${encodeURIComponent(projectName)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.ok) {
+                    alert('切换项目失败: ' + res.error);
+                    return;
+                }
+
+                currentProject = projectName;
+                fetch(`/api/albums/${encodeURIComponent(projectName)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const albumList = document.getElementById('albumList');
+                        albumList.innerHTML = '';
+
+                        if (data.is_flat) {
+                            isFlatMode = true;
+                            currentAlbum = null;
+                            document.getElementById('currentTitle').textContent = `📁 ${projectName}（无子目录）`;
+                            loadFilesForAlbum('-');
+                        } else {
+                            isFlatMode = false;
+                            const albums = data.albums || [];
+                            if (albums.length === 0) {
+                                document.getElementById('currentTitle').textContent = `📁 ${projectName}（空）`;
+                                renderGallery([]);
+                            } else {
+                                albums.forEach(name => {
+                                    const li = document.createElement('li');
+                                    li.className = 'album-item';
+                                    li.textContent = name;
+                                    li.addEventListener('click', () => switchAlbum(name));
+                                    albumList.appendChild(li);
+                                });
+                                switchAlbum(albums[0]);
+                            }
+                        }
+                    });
+            });
+    }
+        init();
+
+    </script>
+</body>
+</html>
